@@ -7,11 +7,13 @@
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Paths;
+//import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.Properties;
 import java.util.Scanner;
+import java.util.TimeZone;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -34,8 +36,10 @@ public class WebCrawler {
      */
     public static void main(String[] args) throws IOException {
 
-        System.out.println(Paths.get(".").toAbsolutePath().normalize().toString());
+        //System.out.println(Paths.get(".").toAbsolutePath().normalize().toString());
         getPropValues();
+
+        kronos_current_timeperiod_url = getKronosCurrentTimeCardURL(kronos_current_timeperiod_url);
 
         Connection.Response loginForm = Jsoup.connect(kronos_url)
                 .method(Connection.Method.GET)
@@ -76,11 +80,11 @@ public class WebCrawler {
                     total_time += Double.parseDouble(obj1.get("duration").toString());
                 }
             }
-            
+
             System.out.println();
             System.out.println(sdf.format(start_date) + " to " + sdf.format(end_date) + "\t Wages: $" + String.format("%.2f", wages));
             System.out.println();
-            if(total_time > 0) {
+            if (total_time > 0) {
                 System.out.println("RIT Holiday hours: " + String.format("%6s", formatSeconds((int) total_time)));
                 System.out.println();
             }
@@ -225,5 +229,35 @@ public class WebCrawler {
             System.out.println("Exception: " + e);
         }
 
+    }
+
+    private static String getKronosCurrentTimeCardURL(String kronos_current_timeperiod_url) {
+        String last_day_date = kronos_current_timeperiod_url.substring(kronos_current_timeperiod_url.lastIndexOf("/") + 1);
+
+        kronos_current_timeperiod_url = kronos_current_timeperiod_url.substring(0, kronos_current_timeperiod_url.lastIndexOf("/"));
+        kronos_current_timeperiod_url = kronos_current_timeperiod_url.substring(0, kronos_current_timeperiod_url.lastIndexOf("/"));
+
+        Calendar localCalendar = Calendar.getInstance(TimeZone.getDefault());
+        int CurrentDayOfYear = localCalendar.get(Calendar.DAY_OF_YEAR);
+
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+
+        try {
+            localCalendar.setTime(sdf.parse(last_day_date));
+        } catch (java.text.ParseException ex) {
+            ex.printStackTrace();
+        }
+        int lastDayOf14DayPayPeriod = localCalendar.get(Calendar.DAY_OF_YEAR);
+        while (lastDayOf14DayPayPeriod < CurrentDayOfYear) {
+            lastDayOf14DayPayPeriod += 14;
+        }
+
+        localCalendar.set(Calendar.DAY_OF_YEAR, lastDayOf14DayPayPeriod - 13);
+        kronos_current_timeperiod_url += "/" + sdf.format(localCalendar.getTime());
+
+        localCalendar.set(Calendar.DAY_OF_YEAR, lastDayOf14DayPayPeriod);
+        kronos_current_timeperiod_url += "/" + sdf.format(localCalendar.getTime());
+
+        return kronos_current_timeperiod_url;
     }
 }
